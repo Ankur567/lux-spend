@@ -50,10 +50,12 @@ export async function loadMemberContext(user: IUser): Promise<MemberContext | nu
   await connectDB();
   const membership = await Membership.findOne({ userId: user._id }).lean();
   if (!membership) return null;
-  const space = await CoupleSpace.findById(membership.coupleSpaceId).lean<ICoupleSpace>();
+  const [space, memberships] = await Promise.all([
+    CoupleSpace.findById(membership.coupleSpaceId).lean<ICoupleSpace>(),
+    Membership.find({ coupleSpaceId: membership.coupleSpaceId }).sort({ joinedAt: 1 }).lean(),
+  ]);
   if (!space) return null;
 
-  const memberships = await Membership.find({ coupleSpaceId: space._id }).sort({ joinedAt: 1 }).lean();
   const users = await User.find({ _id: { $in: memberships.map((m) => m.userId) } }).lean<IUser[]>();
   const members: MemberDTO[] = memberships
     .map((m) => {
